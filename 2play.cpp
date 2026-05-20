@@ -20,6 +20,14 @@ struct PlaylistNode {
     PlaylistNode* next;
 };
 
+struct RiwayatNode {
+    string judul;
+    string penyanyi;
+    string durasi;
+    int tahun;
+    RiwayatNode* next;
+};
+
 void clearScreen() {
 #ifdef _WIN32
     system("cls");
@@ -32,6 +40,17 @@ void pauseScreen() {
     cout << endl << "Tekan Enter untuk melanjutkan...";
     string dummy;
     getline(cin, dummy);
+}
+
+int konversiDurasiKeDetik(string durasi) {
+    size_t pos = durasi.find('.'); 
+    
+    if (pos != string::npos) {
+        int menit = stoi(durasi.substr(0, pos));
+        int detik = stoi(durasi.substr(pos + 1));
+        return (menit * 60) + detik;
+    }
+    return 0; 
 }
 
 Lagu* buatNodeBaru(string judul, string penyanyi, string durasi, int tahun){
@@ -125,6 +144,79 @@ void tampilPostOrder(Lagu* root, int &nomor) {
         tampilPostOrder(root->kiri, nomor);
         tampilPostOrder(root->kanan, nomor);
         cetakBarisLagu(root, nomor);
+    }
+}
+
+void pushRiwayat(RiwayatNode*& top, string judul, string penyanyi, string durasi, int tahun) {
+    RiwayatNode* nodeBaru = new RiwayatNode();
+    nodeBaru->judul = judul;
+    nodeBaru->penyanyi = penyanyi;
+    nodeBaru->durasi = durasi;
+    nodeBaru->tahun = tahun;
+    
+    nodeBaru->next = top;
+    top = nodeBaru;
+}
+
+Lagu* cariMinLagu(Lagu* root) {
+    while (root->kiri != NULL) {
+        root = root->kiri;
+    }
+    return root;
+}
+
+Lagu* hapusNodeBST(Lagu* root, string judulHapus, bool& berhasil) {
+    if (root == NULL) return root;
+
+    if (judulHapus < root->judul) {
+        root->kiri = hapusNodeBST(root->kiri, judulHapus, berhasil);
+    } 
+    else if (judulHapus > root->judul) {
+        root->kanan = hapusNodeBST(root->kanan, judulHapus, berhasil);
+    } 
+    else {
+        berhasil = true;
+
+        if (root->kiri == NULL) {
+            Lagu* temp = root->kanan;
+            delete root;
+            return temp;
+        } else if (root->kanan == NULL) {
+            Lagu* temp = root->kiri;
+            delete root;
+            return temp;
+        }
+        Lagu* temp = cariMinLagu(root->kanan);
+
+        root->judul = temp->judul;
+        root->penyanyi = temp->penyanyi;
+        root->durasi = temp->durasi;
+        root->tahun = temp->tahun;
+
+        root->kanan = hapusNodeBST(root->kanan, temp->judul, berhasil);
+    }
+    return root;
+}
+
+void tulisKeFilePreOrder(Lagu* root, FILE* file) {
+    if (root != NULL) {
+        fprintf(file, "%s\n", root->judul.c_str());
+        fprintf(file, "%s\n", root->penyanyi.c_str());
+        fprintf(file, "%s\n", root->durasi.c_str());
+        fprintf(file, "%d\n", root->tahun);
+        
+        tulisKeFilePreOrder(root->kiri, file);
+        tulisKeFilePreOrder(root->kanan, file);
+    }
+}
+
+void updateFileLagu(Lagu* root) {
+    FILE *file = fopen("data_lagu.txt", "w"); 
+    if (file != NULL) {
+        tulisKeFilePreOrder(root, file);
+        fclose(file); 
+    } else {
+        cout << "Gagal membuka file untuk update data!" << endl;
     }
 }
 
@@ -326,9 +418,9 @@ void menuLihatPlaylist(PlaylistNode* headPlaylist) {
     pauseScreen();
 }
 
-void menuPutarPlaylist(PlaylistNode*& headPlaylist) {
+void menuPutarPlaylist(PlaylistNode*& headPlaylist, RiwayatNode*& topRiwayat) { 
     clearScreen();
-    cout << "--- PUTAR PLAYLIST (QUEUE) ---" << endl;
+    cout << "--- PUTAR PLAYLIST ---" << endl;
     
     if (headPlaylist == NULL) {
         cout << "Playlist kosong. Silakan tambahkan lagu ke playlist (Menu 4) terlebih dahulu." << endl;
@@ -338,6 +430,9 @@ void menuPutarPlaylist(PlaylistNode*& headPlaylist) {
 
     while (headPlaylist != NULL) {
         clearScreen();
+        
+        pushRiwayat(topRiwayat, headPlaylist->judul, headPlaylist->penyanyi, headPlaylist->durasi, headPlaylist->tahun);
+        
         cout << "======================================================================\n";
         cout << "                       SEDANG MEMUTAR LAGU                            \n";
         cout << "======================================================================\n";
@@ -352,7 +447,7 @@ void menuPutarPlaylist(PlaylistNode*& headPlaylist) {
         delete temp;                       
 
         if (headPlaylist != NULL) {
-            cout << "\nTekan Enter untuk memutar lagu selanjutnya di antrean (Dequeue)...";
+            cout << "\nTekan Enter untuk memutar lagu selanjutnya di antrean ...";
             string dummy;
             getline(cin, dummy);
         } else {
@@ -360,6 +455,131 @@ void menuPutarPlaylist(PlaylistNode*& headPlaylist) {
             pauseScreen();
         }
     }
+}
+
+void menuRiwayatLagu(RiwayatNode* top) {
+    clearScreen();
+    cout << "======================================================================\n";
+    cout << "                         RIWAYAT LAGU (STACK)                         \n";
+    cout << "======================================================================\n";
+
+    if (top == NULL) {
+        cout << "Riwayat kosong. Belum ada lagu yang diputar." << endl;
+    } else {
+        cout << left << setw(4) << "No" 
+             << setw(30) << "Judul Lagu" 
+             << setw(20) << "Penyanyi" 
+             << setw(10) << "Durasi" 
+             << "Tahun" << endl;
+        cout << "----------------------------------------------------------------------\n";
+
+        int nomor = 1;
+        RiwayatNode* current = top;
+        while (current != NULL) {
+            cout << left << setw(4) << nomor++ 
+                 << setw(30) << current->judul 
+                 << setw(20) << current->penyanyi 
+                 << setw(10) << current->durasi 
+                 << current->tahun << endl;
+            current = current->next;
+        }
+    }
+    cout << "======================================================================\n";
+    pauseScreen();
+}
+
+void replayBerdasarkanJumlah(RiwayatNode* top) {
+    int jumlahReplay = 0;
+    cout << "Berapa kali replay: ";
+    cin >> jumlahReplay;
+    cin.ignore(10000, '\n');
+    
+    cout << "\nMemutar lagu..." << endl;
+    for (int i = 1; i <= jumlahReplay; i++) {
+        cout << i << ". " << top->judul << " - " << top->penyanyi << endl;
+    }
+    pauseScreen();
+}
+
+void replayBerdasarkanMenit(RiwayatNode* top) {
+    int targetMenit;
+    cout << "Putar selama berapa menit: ";
+    cin >> targetMenit;
+    cin.ignore(10000, '\n');
+    
+    int detikLagu = konversiDurasiKeDetik(top->durasi);
+    int targetDetik = targetMenit * 60;
+    
+    if (detikLagu > 0) {
+        int jumlahReplay = targetDetik / detikLagu;
+        cout << "\nLagu diputar sebanyak " << jumlahReplay << " kali" << endl;
+        
+        for (int i = 1; i <= jumlahReplay; i++) {
+            cout << i << ". " << top->judul << " - " << top->penyanyi << endl;
+        }
+    } else {
+        cout << "\n[Error] Durasi lagu tidak valid untuk dihitung." << endl;
+    }
+    pauseScreen();
+}
+
+void menuReplayLagu(RiwayatNode* top) {
+    clearScreen();
+    
+    if (top == NULL) {
+        cout << "Riwayat kosong. Tidak ada lagu terakhir untuk di-replay." << endl;
+        pauseScreen();
+        return;
+    }
+    
+    int pilihan;
+    cout << "=== MODE REPLAY ===" << endl;
+    cout << "1. Replay berdasarkan jumlah" << endl;
+    cout << "2. Replay berdasarkan menit" << endl;
+    cout << "Pilih: ";
+    cin >> pilihan;
+    cin.ignore(10000, '\n');
+    
+    if (pilihan == 1) {
+        replayBerdasarkanJumlah(top);
+    } else if (pilihan == 2) {
+        replayBerdasarkanMenit(top);
+    } else {
+        cout << "Pilihan tidak valid!" << endl;
+        pauseScreen();
+    }
+}
+
+void menuHapusLagu(Lagu*& rootLagu) {
+    clearScreen();
+    cout << "--- HAPUS LAGU DARI KATALOG ---" << endl;
+    
+    if (rootLagu == NULL) {
+        cout << "Katalog lagu masih kosong. Tidak ada yang bisa dihapus." << endl;
+        pauseScreen();
+        return;
+    }
+
+    string judulHapus;
+    cout << "Masukkan Judul Lagu yang ingin dihapus secara permanen: ";
+    getline(cin, judulHapus);
+
+    bool berhasilDihapus = false;
+    
+    rootLagu = hapusNodeBST(rootLagu, judulHapus, berhasilDihapus);
+
+    if (berhasilDihapus) {
+        updateFileLagu(rootLagu);
+        cout << "\n======================================================================\n";
+        cout << " [ BERHASIL! Lagu '" << judulHapus << "' telah dihapus dari sistem dan file. ]\n";
+        cout << "======================================================================\n";
+    } else {
+        cout << "\n======================================================================\n";
+        cout << " [ GAGAL! Lagu tidak ditemukan. Pastikan huruf besar/kecilnya sesuai. ]\n";
+        cout << "======================================================================\n";
+    }
+    
+    pauseScreen();
 }
 
 void programSelesai(){
@@ -372,6 +592,7 @@ int main(){
     char pilih;
     Lagu* rootLagu = NULL;
     PlaylistNode* headPlaylist = NULL;
+    RiwayatNode* topRiwayat = NULL;
     muatDataDariFile(rootLagu);
     
     do{
@@ -402,7 +623,13 @@ int main(){
 			break;
 			case '5': menuLihatPlaylist(headPlaylist);
 			break;
-			case '6': menuPutarPlaylist(headPlaylist);
+			case '6': menuPutarPlaylist(headPlaylist, topRiwayat);
+			break;
+			case '7': menuReplayLagu(topRiwayat);
+			break;
+			case '8': menuRiwayatLagu(topRiwayat);
+			break;
+			case '9': menuHapusLagu(rootLagu);
 			break;
             case '0': 
                 programSelesai();
