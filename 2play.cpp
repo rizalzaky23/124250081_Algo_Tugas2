@@ -12,6 +12,14 @@ struct Lagu{
 	Lagu* kanan;
 };
 
+struct PlaylistNode {
+    string judul;
+    string penyanyi;
+    string durasi;
+    int tahun;
+    PlaylistNode* next;
+};
+
 void clearScreen() {
 #ifdef _WIN32
     system("cls");
@@ -201,6 +209,159 @@ void menuTampilLagu(Lagu* root){
     } while (pilih != '0');
 }
 
+Lagu* cariLaguBST(Lagu* root, string judulCari) {
+    if (root == NULL || root->judul == judulCari) {
+        return root;
+    }
+
+    if (judulCari < root->judul) {
+        return cariLaguBST(root->kiri, judulCari);
+    } 
+    else {
+        return cariLaguBST(root->kanan, judulCari);
+    }
+}
+
+void menuCariLagu(Lagu* root) {
+    clearScreen();
+    string judulCari;
+    
+    cout << "--- CARI LAGU ---" << endl;
+    if (root == NULL) {
+        cout << "Belum ada lagu di dalam sistem." << endl;
+        pauseScreen();
+        return;
+    }
+    
+    cout << "Masukkan Judul Lagu yang dicari : ";
+    getline(cin, judulCari);
+ 
+    Lagu* hasilCari = cariLaguBST(root, judulCari);
+    
+    cout << "\n======================================================================\n";
+    if (hasilCari != NULL) {
+        cout << "                       LAGU DITEMUKAN!                        \n";
+        cout << "======================================================================\n";
+        cout << left << setw(20) << "Judul Lagu" << ": " << hasilCari->judul << endl;
+        cout << left << setw(20) << "Penyanyi"   << ": " << hasilCari->penyanyi << endl;
+        cout << left << setw(20) << "Durasi"     << ": " << hasilCari->durasi << endl;
+        cout << left << setw(20) << "Tahun Terbit" << ": " << hasilCari->tahun << endl;
+    } else {
+        cout << "                    LAGU TIDAK DITEMUKAN                      \n";
+        cout << "======================================================================\n";
+        cout << "Pastikan penulisan judul (huruf besar/kecil dan spasi) sudah benar." << endl;
+    }
+    cout << "======================================================================\n";
+    
+    pauseScreen();
+}
+
+void menuTambahPlaylist(Lagu* rootKatalog, PlaylistNode*& headPlaylist) {
+    clearScreen();
+    cout << "--- TAMBAH LAGU KE PLAYLIST ---" << endl;
+    if (rootKatalog == NULL) {
+        cout << "Katalog lagu masih kosong. Tambahkan lagu ke sistem terlebih dahulu." << endl;
+        pauseScreen();
+        return;
+    }
+
+    string judulCari;
+    cout << "Masukkan Judul Lagu yang ingin dimasukkan ke Playlist: ";
+    getline(cin, judulCari);
+
+    Lagu* laguDitemukan = cariLaguBST(rootKatalog, judulCari);
+
+    if (laguDitemukan != NULL) {
+        PlaylistNode* nodeBaru = new PlaylistNode();
+        nodeBaru->judul = laguDitemukan->judul;
+        nodeBaru->penyanyi = laguDitemukan->penyanyi;
+        nodeBaru->durasi = laguDitemukan->durasi;
+        nodeBaru->tahun = laguDitemukan->tahun;
+        nodeBaru->next = NULL;
+
+        if (headPlaylist == NULL) {
+            headPlaylist = nodeBaru;
+        } else {
+            PlaylistNode* temp = headPlaylist;
+            while (temp->next != NULL) {
+                temp = temp->next;
+            }
+            temp->next = nodeBaru;
+        }
+        cout << "\n[ Berhasil! Lagu '" << nodeBaru->judul << "' telah ditambahkan ke Playlist. ]" << endl;
+    } else {
+        cout << "\n[ Gagal! Lagu tidak ditemukan di katalog. Pastikan judul benar. ]" << endl;
+    }
+    pauseScreen();
+}
+
+void menuLihatPlaylist(PlaylistNode* headPlaylist) {
+    clearScreen();
+    cout << "======================================================================\n";
+    cout << "                         DAFTAR PLAYLIST SAYA                         \n";
+    cout << "======================================================================\n";
+
+    if (headPlaylist == NULL) {
+        cout << "Playlist Anda masih kosong." << endl;
+    } else {
+        cout << left << setw(4) << "No" 
+             << setw(30) << "Judul Lagu" 
+             << setw(20) << "Penyanyi" 
+             << setw(10) << "Durasi" 
+             << "Tahun" << endl;
+        cout << "----------------------------------------------------------------------\n";
+
+        int nomor = 1;
+        PlaylistNode* temp = headPlaylist;
+        while (temp != NULL) {
+            cout << left << setw(4) << nomor++ 
+                 << setw(30) << temp->judul 
+                 << setw(20) << temp->penyanyi 
+                 << setw(10) << temp->durasi 
+                 << temp->tahun << endl;
+            temp = temp->next; 
+        }
+    }
+    cout << "======================================================================\n";
+    pauseScreen();
+}
+
+void menuPutarPlaylist(PlaylistNode*& headPlaylist) {
+    clearScreen();
+    cout << "--- PUTAR PLAYLIST (QUEUE) ---" << endl;
+    
+    if (headPlaylist == NULL) {
+        cout << "Playlist kosong. Silakan tambahkan lagu ke playlist (Menu 4) terlebih dahulu." << endl;
+        pauseScreen();
+        return;
+    }
+
+    while (headPlaylist != NULL) {
+        clearScreen();
+        cout << "======================================================================\n";
+        cout << "                       SEDANG MEMUTAR LAGU                            \n";
+        cout << "======================================================================\n";
+        cout << left << setw(15) << "Judul"    << ": " << headPlaylist->judul << endl;
+        cout << left << setw(15) << "Penyanyi" << ": " << headPlaylist->penyanyi << endl;
+        cout << left << setw(15) << "Durasi"   << ": " << headPlaylist->durasi << endl;
+        cout << left << setw(15) << "Tahun"    << ": " << headPlaylist->tahun << endl;
+        cout << "======================================================================\n";
+
+        PlaylistNode* temp = headPlaylist;
+        headPlaylist = headPlaylist->next;
+        delete temp;                       
+
+        if (headPlaylist != NULL) {
+            cout << "\nTekan Enter untuk memutar lagu selanjutnya di antrean (Dequeue)...";
+            string dummy;
+            getline(cin, dummy);
+        } else {
+            cout << "\n[ Semua lagu dalam Playlist telah selesai diputar! (Queue Kosong) ]" << endl;
+            pauseScreen();
+        }
+    }
+}
+
 void programSelesai(){
     clearScreen();
     cout << "Terimakasih Telah menggunakan Program :)" << endl;
@@ -210,6 +371,7 @@ void programSelesai(){
 int main(){
     char pilih;
     Lagu* rootLagu = NULL;
+    PlaylistNode* headPlaylist = NULL;
     muatDataDariFile(rootLagu);
     
     do{
@@ -233,6 +395,14 @@ int main(){
 			case '1': menuTambahLagu(rootLagu);
 			break;
 			case '2': menuTampilLagu(rootLagu);
+			break;
+			case '3': menuCariLagu(rootLagu);
+			break;
+			case '4': menuTambahPlaylist(rootLagu, headPlaylist);
+			break;
+			case '5': menuLihatPlaylist(headPlaylist);
+			break;
+			case '6': menuPutarPlaylist(headPlaylist);
 			break;
             case '0': 
                 programSelesai();
