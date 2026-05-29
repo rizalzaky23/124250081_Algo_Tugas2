@@ -428,30 +428,55 @@ void menuPutarPlaylist(PlaylistNode*& headPlaylist, RiwayatNode*& topRiwayat) {
         return;
     }
 
-    while (headPlaylist != NULL) {
+    PlaylistNode* current = headPlaylist;
+
+    while (current != NULL) {
         clearScreen();
         
-        pushRiwayat(topRiwayat, headPlaylist->judul, headPlaylist->penyanyi, headPlaylist->durasi, headPlaylist->tahun);
+        pushRiwayat(topRiwayat, current->judul, current->penyanyi, current->durasi, current->tahun);
         
         cout << "======================================================================\n";
         cout << "                       SEDANG MEMUTAR LAGU                            \n";
         cout << "======================================================================\n";
-        cout << left << setw(15) << "Judul"    << ": " << headPlaylist->judul << endl;
-        cout << left << setw(15) << "Penyanyi" << ": " << headPlaylist->penyanyi << endl;
-        cout << left << setw(15) << "Durasi"   << ": " << headPlaylist->durasi << endl;
-        cout << left << setw(15) << "Tahun"    << ": " << headPlaylist->tahun << endl;
+        cout << left << setw(15) << "Judul"    << ": " << current->judul << endl;
+        cout << left << setw(15) << "Penyanyi" << ": " << current->penyanyi << endl;
+        cout << left << setw(15) << "Durasi"   << ": " << current->durasi << endl;
+        cout << left << setw(15) << "Tahun"    << ": " << current->tahun << endl;
         cout << "======================================================================\n";
 
-        PlaylistNode* temp = headPlaylist;
-        headPlaylist = headPlaylist->next;
-        delete temp;                       
+        cout << "\nKontrol Pemutaran:\n";
+        cout << "[n] Next  |  [p] Previous  |  [q] Quit\n";
+        cout << "Masukkan pilihan: ";
+        
+        string pilihan;
+        getline(cin, pilihan);
 
-        if (headPlaylist != NULL) {
-            cout << "\nTekan Enter untuk memutar lagu selanjutnya di antrean ...";
-            string dummy;
-            getline(cin, dummy);
-        } else {
-            cout << "\n[ Semua lagu dalam Playlist telah selesai diputar! (Queue Kosong) ]" << endl;
+        if (pilihan == "n" || pilihan == "N") {
+            current = current->next;
+            if (current == NULL) {
+                cout << "\n[ Semua lagu dalam Playlist telah selesai diputar! ]" << endl;
+                pauseScreen();
+            }
+        } 
+        else if (pilihan == "p" || pilihan == "P") {
+            if (current == headPlaylist) {
+                cout << "\n[ Ini adalah lagu pertama, tidak ada lagu sebelumnya! ]" << endl;
+                pauseScreen();
+            } else {
+                PlaylistNode* temp = headPlaylist;
+                while (temp->next != current) {
+                    temp = temp->next;
+                }
+                current = temp; 
+            }
+        } 
+        else if (pilihan == "q" || pilihan == "Q") {
+            cout << "\n[ Pemutaran dihentikan. ]" << endl;
+            pauseScreen();
+            break;
+        } 
+        else {
+            cout << "\n[ Pilihan tidak valid. Silakan tekan 'n', 'p', atau 'q'. ]" << endl;
             pauseScreen();
         }
     }
@@ -488,7 +513,7 @@ void menuRiwayatLagu(RiwayatNode* top) {
     pauseScreen();
 }
 
-void replayBerdasarkanJumlah(RiwayatNode* top) {
+void replayBerdasarkanJumlah(Lagu* laguTerpilih, RiwayatNode*& topRiwayat) {
     int jumlahReplay = 0;
     cout << "Berapa kali replay: ";
     cin >> jumlahReplay;
@@ -496,18 +521,19 @@ void replayBerdasarkanJumlah(RiwayatNode* top) {
     
     cout << "\nMemutar lagu..." << endl;
     for (int i = 1; i <= jumlahReplay; i++) {
-        cout << i << ". " << top->judul << " - " << top->penyanyi << endl;
+        cout << i << ". " << laguTerpilih->judul << " - " << laguTerpilih->penyanyi << endl;
+        pushRiwayat(topRiwayat, laguTerpilih->judul, laguTerpilih->penyanyi, laguTerpilih->durasi, laguTerpilih->tahun);
     }
     pauseScreen();
 }
 
-void replayBerdasarkanMenit(RiwayatNode* top) {
+void replayBerdasarkanMenit(Lagu* laguTerpilih, RiwayatNode*& topRiwayat) {
     int targetMenit;
     cout << "Putar selama berapa menit: ";
     cin >> targetMenit;
     cin.ignore(10000, '\n');
     
-    int detikLagu = konversiDurasiKeDetik(top->durasi);
+    int detikLagu = konversiDurasiKeDetik(laguTerpilih->durasi);
     int targetDetik = targetMenit * 60;
     
     if (detikLagu > 0) {
@@ -515,7 +541,8 @@ void replayBerdasarkanMenit(RiwayatNode* top) {
         cout << "\nLagu diputar sebanyak " << jumlahReplay << " kali" << endl;
         
         for (int i = 1; i <= jumlahReplay; i++) {
-            cout << i << ". " << top->judul << " - " << top->penyanyi << endl;
+            cout << i << ". " << laguTerpilih->judul << " - " << laguTerpilih->penyanyi << endl;
+            pushRiwayat(topRiwayat, laguTerpilih->judul, laguTerpilih->penyanyi, laguTerpilih->durasi, laguTerpilih->tahun);
         }
     } else {
         cout << "\n[Error] Durasi lagu tidak valid untuk dihitung." << endl;
@@ -523,17 +550,29 @@ void replayBerdasarkanMenit(RiwayatNode* top) {
     pauseScreen();
 }
 
-void menuReplayLagu(RiwayatNode* top) {
+void menuReplayLagu(Lagu* rootLagu, RiwayatNode*& topRiwayat) {
     clearScreen();
     
-    if (top == NULL) {
-        cout << "Riwayat kosong. Tidak ada lagu terakhir untuk di-replay." << endl;
+    if (rootLagu == NULL) {
+        cout << "Katalog lagu masih kosong." << endl;
         pauseScreen();
         return;
     }
     
+    string judulCari;
+    cout << "Masukkan judul lagu: ";
+    getline(cin, judulCari);
+
+    Lagu* laguTerpilih = cariLaguBST(rootLagu, judulCari);
+
+    if (laguTerpilih == NULL) {
+        cout << "\n[ Gagal! Lagu tidak ditemukan di katalog. Pastikan judul benar. ]" << endl;
+        pauseScreen();
+        return;
+    }
+
     int pilihan;
-    cout << "=== MODE REPLAY ===" << endl;
+    cout << "\n=== MODE REPLAY ===" << endl;
     cout << "1. Replay berdasarkan jumlah" << endl;
     cout << "2. Replay berdasarkan menit" << endl;
     cout << "Pilih: ";
@@ -541,15 +580,14 @@ void menuReplayLagu(RiwayatNode* top) {
     cin.ignore(10000, '\n');
     
     if (pilihan == 1) {
-        replayBerdasarkanJumlah(top);
+        replayBerdasarkanJumlah(laguTerpilih, topRiwayat);
     } else if (pilihan == 2) {
-        replayBerdasarkanMenit(top);
+        replayBerdasarkanMenit(laguTerpilih, topRiwayat);
     } else {
         cout << "Pilihan tidak valid!" << endl;
         pauseScreen();
     }
 }
-
 void menuHapusLagu(Lagu*& rootLagu) {
     clearScreen();
     cout << "--- HAPUS LAGU DARI KATALOG ---" << endl;
@@ -625,7 +663,7 @@ int main(){
 			break;
 			case '6': menuPutarPlaylist(headPlaylist, topRiwayat);
 			break;
-			case '7': menuReplayLagu(topRiwayat);
+			case '7': menuReplayLagu(rootLagu, topRiwayat);
 			break;
 			case '8': menuRiwayatLagu(topRiwayat);
 			break;
